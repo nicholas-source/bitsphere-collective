@@ -145,7 +145,7 @@
         (asserts! (> deposit-amount u0) ERR_ZERO_AMOUNT)
 
         ;; Secure STX transfer to protocol
-        (try! (stx-transfer? deposit-amount tx-sender (as-contract tx-sender)))
+        (try! (stx-transfer? deposit-amount tx-sender current-contract))
         
         ;; Record member deposit with time-lock
         (map-set member-deposits tx-sender {
@@ -175,7 +175,7 @@
             (try! (burn-membership-tokens tx-sender withdrawal-amount))
             
             ;; Transfer STX back to member - FIXED: properly check the result
-            (try! (as-contract (stx-transfer? withdrawal-amount (as-contract tx-sender) tx-sender)))
+            (try! (unwrap! (as-contract? (stx-transfer? withdrawal-amount current-contract tx-sender)) ERR_UNAUTHORIZED))
             (ok true)
         )
     )
@@ -195,7 +195,7 @@
         ;; Comprehensive input validation
         (asserts! (> (len description) u0) ERR_INVALID_DESCRIPTION)
         (asserts! (> funding-amount u0) ERR_ZERO_AMOUNT)
-        (asserts! (not (is-eq beneficiary (as-contract tx-sender))) ERR_INVALID_TARGET)
+        (asserts! (not (is-eq beneficiary current-contract)) ERR_INVALID_TARGET)
         (asserts! (and (>= voting-duration MINIMUM_PROPOSAL_DURATION) 
                       (<= voting-duration MAXIMUM_PROPOSAL_DURATION)) ERR_INVALID_DURATION)
         
@@ -265,7 +265,7 @@
 
         (let (
             (proposal (unwrap! (map-get? governance-proposals proposal-id) ERR_PROPOSAL_NOT_FOUND))
-            (available-funds (stx-get-balance (as-contract tx-sender)))
+            (available-funds (stx-get-balance current-contract))
         )
             (asserts! (not (get executed proposal)) ERR_UNAUTHORIZED)
             (asserts! (>= stacks-block-height (get expiry-height proposal)) ERR_PROPOSAL_EXPIRED)
@@ -273,10 +273,10 @@
             (asserts! (>= available-funds (get funding-amount proposal)) ERR_INSUFFICIENT_BALANCE)
             
             ;; Execute approved funding transfer
-            (try! (as-contract (stx-transfer? 
+            (try! (unwrap! (as-contract? (stx-transfer? 
                 (get funding-amount proposal) 
-                (as-contract tx-sender) 
-                (get beneficiary proposal))))
+                current-contract 
+                (get beneficiary proposal))) ERR_UNAUTHORIZED))
             
             ;; Mark proposal as executed
             (map-set governance-proposals proposal-id (merge proposal {executed: true}))
@@ -312,6 +312,6 @@
         initialized: (var-get protocol-initialized),
         total-proposals: (var-get proposal-counter),
         total-supply: (var-get total-supply),
-        contract-balance: (stx-get-balance (as-contract tx-sender))
+        contract-balance: (stx-get-balance current-contract)
     })
 )
