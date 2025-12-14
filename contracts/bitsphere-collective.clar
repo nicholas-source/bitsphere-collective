@@ -175,7 +175,7 @@
             (try! (burn-membership-tokens tx-sender withdrawal-amount))
             
             ;; Transfer STX back to member - FIXED: properly check the result
-            (try! (unwrap! (as-contract? ((with-stx withdrawal-amount)) (stx-transfer? withdrawal-amount current-contract tx-sender)) ERR_UNAUTHORIZED))
+            (try! (as-contract? ((with-stx withdrawal-amount)) (unwrap! (stx-transfer? withdrawal-amount current-contract tx-sender) ERR_UNAUTHORIZED)))
             (ok true)
         )
     )
@@ -273,10 +273,10 @@
             (asserts! (>= available-funds (get funding-amount proposal)) ERR_INSUFFICIENT_BALANCE)
             
             ;; Execute approved funding transfer
-            (try! (unwrap! (as-contract? ((with-stx (get funding-amount proposal))) (stx-transfer? 
+            (try! (as-contract? ((with-stx (get funding-amount proposal))) (unwrap! (stx-transfer? 
                 (get funding-amount proposal) 
                 current-contract 
-                (get beneficiary proposal))) ERR_UNAUTHORIZED))
+                (get beneficiary proposal)) ERR_UNAUTHORIZED)))
             
             ;; Mark proposal as executed
             (map-set governance-proposals proposal-id (merge proposal {executed: true}))
