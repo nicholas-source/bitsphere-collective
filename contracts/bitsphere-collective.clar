@@ -175,7 +175,7 @@
             (try! (burn-membership-tokens tx-sender withdrawal-amount))
             
             ;; Transfer STX back to member - FIXED: properly check the result
-            (try! (unwrap! (as-contract? (stx-transfer? withdrawal-amount current-contract tx-sender)) ERR_UNAUTHORIZED))
+            (try! (unwrap! (as-contract? ((with-stx withdrawal-amount)) (stx-transfer? withdrawal-amount current-contract tx-sender)) ERR_UNAUTHORIZED))
             (ok true)
         )
     )
@@ -273,7 +273,7 @@
             (asserts! (>= available-funds (get funding-amount proposal)) ERR_INSUFFICIENT_BALANCE)
             
             ;; Execute approved funding transfer
-            (try! (unwrap! (as-contract? (stx-transfer? 
+            (try! (unwrap! (as-contract? ((with-stx (get funding-amount proposal))) (stx-transfer? 
                 (get funding-amount proposal) 
                 current-contract 
                 (get beneficiary proposal))) ERR_UNAUTHORIZED))
