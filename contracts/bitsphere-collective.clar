@@ -45,6 +45,7 @@
 (define-constant MAXIMUM_PROPOSAL_DURATION u20160)  ;; ~14 days
 (define-constant MINIMUM_DEPOSIT_THRESHOLD u1000000) ;; 1 STX in microSTX
 (define-constant DEFAULT_LOCK_PERIOD u1440)         ;; ~10 days in blocks
+(define-constant MINIMUM_QUORUM_PERCENTAGE u10)     ;; 10% of total supply must vote
 
 ;; PROTOCOL STATE VARIABLES
 
@@ -145,16 +146,24 @@
         (asserts! (> deposit-amount u0) ERR_ZERO_AMOUNT)
 
         ;; Secure STX transfer to protocol
-        (try! (stx-transfer? deposit-amount tx-sender (as-contract tx-sender)))
+        (try! (stx-transfer? deposit-amount tx-sender current-contract))
         
-        ;; Record member deposit with time-lock
-        (map-set member-deposits tx-sender {
-            deposit-amount: deposit-amount,
-            unlock-height: (+ stacks-block-height (var-get lock-period)),
-            entry-block: stacks-block-height
-        })
+        ;; Record or update member deposit with time-lock
+        (let (
+            (existing-deposit (default-to {deposit-amount: u0, unlock-height: u0, entry-block: u0} 
+                (map-get? member-deposits tx-sender)))
+        )
+            (map-set member-deposits tx-sender {
+                deposit-amount: (+ (get deposit-amount existing-deposit) deposit-amount),
+                unlock-height: (+ stacks-block-height (var-get lock-period)),
+                entry-block: (if (is-eq (get entry-block existing-deposit) u0) 
+                    stacks-block-height 
+                    (get entry-block existing-deposit))
+            })
+        )
         
         ;; Issue membership tokens proportional to deposit
+        (print {event: "member-joined", member: tx-sender, amount: deposit-amount, block: stacks-block-height})
         (mint-membership-tokens tx-sender deposit-amount)
     )
 )
@@ -170,12 +179,19 @@
         )
             (asserts! (>= stacks-block-height (get unlock-height deposit-info)) ERR_LOCKED_PERIOD)
             (asserts! (>= member-balance withdrawal-amount) ERR_INSUFFICIENT_BALANCE)
+            (asserts! (>= (get deposit-amount deposit-info) withdrawal-amount) ERR_INSUFFICIENT_BALANCE)
             
+            ;; Update state BEFORE external call (reentrancy protection)
             ;; Burn membership tokens
             (try! (burn-membership-tokens tx-sender withdrawal-amount))
             
-            ;; Transfer STX back to member - FIXED: properly check the result
-            (try! (as-contract (stx-transfer? withdrawal-amount (as-contract tx-sender) tx-sender)))
+            ;; Update deposit record
+            (map-set member-deposits tx-sender 
+                (merge deposit-info {deposit-amount: (- (get deposit-amount deposit-info) withdrawal-amount)}))
+            
+            ;; Transfer STX back to member
+            (try! (as-contract? ((with-stx withdrawal-amount)) (unwrap! (stx-transfer? withdrawal-amount current-contract tx-sender) ERR_UNAUTHORIZED)))
+            (print {event: "member-exited", member: tx-sender, amount: withdrawal-amount, block: stacks-block-height})
             (ok true)
         )
     )
@@ -195,7 +211,7 @@
         ;; Comprehensive input validation
         (asserts! (> (len description) u0) ERR_INVALID_DESCRIPTION)
         (asserts! (> funding-amount u0) ERR_ZERO_AMOUNT)
-        (asserts! (not (is-eq beneficiary (as-contract tx-sender))) ERR_INVALID_TARGET)
+        (asserts! (not (is-eq beneficiary current-contract)) ERR_INVALID_TARGET)
         (asserts! (and (>= voting-duration MINIMUM_PROPOSAL_DURATION) 
                       (<= voting-duration MAXIMUM_PROPOSAL_DURATION)) ERR_INVALID_DURATION)
         
@@ -218,6 +234,7 @@
             })
             
             (var-set proposal-counter new-proposal-id)
+            (print {event: "proposal-submitted", proposal-id: new-proposal-id, proposer: tx-sender, amount: funding-amount})
             (ok new-proposal-id)
         )
     )
@@ -253,6 +270,7 @@
                 )
             )
             
+            (print {event: "vote-cast", proposal-id: proposal-id, voter: tx-sender, support: support, power: voting-power})
             (ok true)
         )
     )
@@ -265,23 +283,53 @@
 
         (let (
             (proposal (unwrap! (map-get? governance-proposals proposal-id) ERR_PROPOSAL_NOT_FOUND))
-            (available-funds (stx-get-balance (as-contract tx-sender)))
+            (available-funds (stx-get-balance current-contract))
         )
             (asserts! (not (get executed proposal)) ERR_UNAUTHORIZED)
+            ;; FIXED: Ensure voting period has ENDED (not expired before execution)
             (asserts! (>= stacks-block-height (get expiry-height proposal)) ERR_PROPOSAL_EXPIRED)
+            ;; Require simple majority
             (asserts! (> (get votes-for proposal) (get votes-against proposal)) ERR_UNAUTHORIZED)
+            ;; Check minimum quorum participation
+            (let ((total-votes (+ (get votes-for proposal) (get votes-against proposal))))
+                (asserts! (>= (* total-votes u100) (* (var-get total-supply) MINIMUM_QUORUM_PERCENTAGE)) ERR_UNAUTHORIZED)
+            )
             (asserts! (>= available-funds (get funding-amount proposal)) ERR_INSUFFICIENT_BALANCE)
             
-            ;; Execute approved funding transfer
-            (try! (as-contract (stx-transfer? 
-                (get funding-amount proposal) 
-                (as-contract tx-sender) 
-                (get beneficiary proposal))))
-            
-            ;; Mark proposal as executed
+            ;; Mark proposal as executed BEFORE transfer (reentrancy protection)
             (map-set governance-proposals proposal-id (merge proposal {executed: true}))
+            
+            ;; Execute approved funding transfer
+            (try! (as-contract? ((with-stx (get funding-amount proposal))) (unwrap! (stx-transfer? 
+                (get funding-amount proposal) 
+                current-contract 
+                (get beneficiary proposal)) ERR_UNAUTHORIZED)))
+            
+            (print {event: "proposal-executed", proposal-id: proposal-id, amount: (get funding-amount proposal), beneficiary: (get beneficiary proposal)})
             (ok true)
         )
+    )
+)
+
+;; ADMIN FUNCTIONS
+
+(define-public (update-minimum-deposit (new-minimum uint))
+    (begin
+        (asserts! (is-protocol-owner) ERR_OWNER_ONLY)
+        (asserts! (> new-minimum u0) ERR_ZERO_AMOUNT)
+        (var-set minimum-deposit new-minimum)
+        (print {event: "minimum-deposit-updated", new-value: new-minimum})
+        (ok true)
+    )
+)
+
+(define-public (update-lock-period (new-period uint))
+    (begin
+        (asserts! (is-protocol-owner) ERR_OWNER_ONLY)
+        (asserts! (> new-period u0) ERR_ZERO_AMOUNT)
+        (var-set lock-period new-period)
+        (print {event: "lock-period-updated", new-value: new-period})
+        (ok true)
     )
 )
 
@@ -312,6 +360,6 @@
         initialized: (var-get protocol-initialized),
         total-proposals: (var-get proposal-counter),
         total-supply: (var-get total-supply),
-        contract-balance: (stx-get-balance (as-contract tx-sender))
+        contract-balance: (stx-get-balance current-contract)
     })
 )
