@@ -5,6 +5,7 @@
  * using the @hirosystems/chainhooks-client package.
  */
 
+import 'dotenv/config';
 import { ChainhooksClient, CHAINHOOKS_BASE_URL } from '@hirosystems/chainhooks-client';
 
 // Configuration

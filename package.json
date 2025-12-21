@@ -7,7 +7,12 @@
   "scripts": {
     "test": "vitest run",
     "test:report": "vitest run -- --coverage --costs",
-    "test:watch": "chokidar \"tests/**/*.ts\" \"contracts/**/*.clar\" -c \"npm run test:report\""
+    "test:watch": "chokidar \"tests/**/*.ts\" \"contracts/**/*.clar\" -c \"npm run test:report\"",
+    "monitor:setup": "tsx monitoring/chainhook-setup.ts setup",
+    "monitor:list": "tsx monitoring/chainhook-setup.ts list",
+    "monitor:status": "tsx monitoring/chainhook-setup.ts status",
+    "monitor:delete": "tsx monitoring/chainhook-setup.ts delete",
+    "webhook:start": "tsx monitoring/webhook-server.ts"
   },
   "author": "",
   "license": "ISC",
@@ -18,7 +23,9 @@
     "@types/express": "^5.0.6",
     "@types/node": "^25.0.2",
     "chokidar-cli": "^3.0.0",
+    "dotenv": "^17.2.3",
     "express": "^5.2.1",
+    "undici": "^7.16.0",
     "vitest": "^4.0.7",
     "vitest-environment-clarinet": "^3.0.0"
   },
