@@ -190,7 +190,8 @@
                 (merge deposit-info {deposit-amount: (- (get deposit-amount deposit-info) withdrawal-amount)}))
             
             ;; Transfer STX back to member
-            (try! (as-contract? ((with-stx withdrawal-amount)) (unwrap! (stx-transfer? withdrawal-amount current-contract tx-sender) ERR_UNAUTHORIZED)))
+            (let ((member tx-sender))
+                (try! (as-contract? ((with-all-assets-unsafe)) (try! (stx-transfer? withdrawal-amount tx-sender member)))))
             (print {event: "member-exited", member: tx-sender, amount: withdrawal-amount, block: stacks-block-height})
             (ok true)
         )
@@ -300,10 +301,7 @@
             (map-set governance-proposals proposal-id (merge proposal {executed: true}))
             
             ;; Execute approved funding transfer
-            (try! (as-contract? ((with-stx (get funding-amount proposal))) (unwrap! (stx-transfer? 
-                (get funding-amount proposal) 
-                current-contract 
-                (get beneficiary proposal)) ERR_UNAUTHORIZED)))
+            (try! (as-contract? ((with-all-assets-unsafe)) (try! (stx-transfer? (get funding-amount proposal) tx-sender (get beneficiary proposal)))))
             
             (print {event: "proposal-executed", proposal-id: proposal-id, amount: (get funding-amount proposal), beneficiary: (get beneficiary proposal)})
             (ok true)
