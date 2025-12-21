@@ -287,6 +287,16 @@ const command = process.argv[2];
         await deleteChainhook(uuid);
         break;
       
+      case 'enable-all':
+        const hooks = await listChainhooks();
+        console.log('\n🔄 Enabling all chainhooks...');
+        for (const hook of hooks) {
+          await client.enableChainhook(hook.uuid, true);
+          console.log(`✅ Enabled: ${hook.definition.name}`);
+        }
+        console.log('\n🎉 All chainhooks enabled!');
+        break;
+      
       default:
         console.log('BitSphere Collective - Chainhook Monitoring\n');
         console.log('Usage:');

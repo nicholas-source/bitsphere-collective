@@ -12,6 +12,7 @@
     "monitor:list": "tsx monitoring/chainhook-setup.ts list",
     "monitor:status": "tsx monitoring/chainhook-setup.ts status",
     "monitor:delete": "tsx monitoring/chainhook-setup.ts delete",
+    "monitor:enable": "tsx monitoring/chainhook-setup.ts enable-all",
     "webhook:start": "tsx monitoring/webhook-server.ts"
   },
   "author": "",
