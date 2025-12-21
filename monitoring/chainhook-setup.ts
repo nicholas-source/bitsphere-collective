@@ -38,19 +38,21 @@ async function setupMonitoring() {
       network: 'mainnet',
       version: 1,
       filters: {
-        contract_identifier: CONTRACT_ADDRESS,
-        print_event: {
-          contains: 'member-joined'
-        }
+        events: [
+          {
+            type: 'contract_log',
+            contract_identifier: CONTRACT_ADDRESS
+          }
+        ]
       },
       action: {
-        http_post: {
-          url: `${WEBHOOK_URL}/member-joined`,
-          authorization_header: `Bearer ${process.env.WEBHOOK_SECRET || ''}`
-        }
+        type: 'http_post',
+        url: `${WEBHOOK_URL}/member-joined`,
+        authorization_header: `Bearer ${process.env.WEBHOOK_SECRET || ''}`
       },
       options: {
-        start_at_block_height: 'current' // Start monitoring from now
+        start_at_block_height: 'current', // Start monitoring from now
+        enable_on_registration: true
       }
     });
     console.log('✅ Member Join Hook registered:', joinHook.uuid);
@@ -62,19 +64,21 @@ async function setupMonitoring() {
       network: 'mainnet',
       version: 1,
       filters: {
-        contract_identifier: CONTRACT_ADDRESS,
-        print_event: {
-          contains: 'member-exited'
-        }
+        events: [
+          {
+            type: 'contract_log',
+            contract_identifier: CONTRACT_ADDRESS
+          }
+        ]
       },
       action: {
-        http_post: {
-          url: `${WEBHOOK_URL}/member-exited`,
-          authorization_header: `Bearer ${process.env.WEBHOOK_SECRET || ''}`
-        }
+        type: 'http_post',
+        url: `${WEBHOOK_URL}/member-exited`,
+        authorization_header: `Bearer ${process.env.WEBHOOK_SECRET || ''}`
       },
       options: {
-        start_at_block_height: 'current'
+        start_at_block_height: 'current',
+        enable_on_registration: true
       }
     });
     console.log('✅ Member Exit Hook registered:', exitHook.uuid);
@@ -86,19 +90,21 @@ async function setupMonitoring() {
       network: 'mainnet',
       version: 1,
       filters: {
-        contract_identifier: CONTRACT_ADDRESS,
-        print_event: {
-          contains: 'proposal-submitted'
-        }
+        events: [
+          {
+            type: 'contract_log',
+            contract_identifier: CONTRACT_ADDRESS
+          }
+        ]
       },
       action: {
-        http_post: {
-          url: `${WEBHOOK_URL}/proposal-submitted`,
-          authorization_header: `Bearer ${process.env.WEBHOOK_SECRET || ''}`
-        }
+        type: 'http_post',
+        url: `${WEBHOOK_URL}/proposal-submitted`,
+        authorization_header: `Bearer ${process.env.WEBHOOK_SECRET || ''}`
       },
       options: {
-        start_at_block_height: 'current'
+        start_at_block_height: 'current',
+        enable_on_registration: true
       }
     });
     console.log('✅ Proposal Submission Hook registered:', proposalHook.uuid);
@@ -110,19 +116,21 @@ async function setupMonitoring() {
       network: 'mainnet',
       version: 1,
       filters: {
-        contract_identifier: CONTRACT_ADDRESS,
-        print_event: {
-          contains: 'vote-cast'
-        }
+        events: [
+          {
+            type: 'contract_log',
+            contract_identifier: CONTRACT_ADDRESS
+          }
+        ]
       },
       action: {
-        http_post: {
-          url: `${WEBHOOK_URL}/vote-cast`,
-          authorization_header: `Bearer ${process.env.WEBHOOK_SECRET || ''}`
-        }
+        type: 'http_post',
+        url: `${WEBHOOK_URL}/vote-cast`,
+        authorization_header: `Bearer ${process.env.WEBHOOK_SECRET || ''}`
       },
       options: {
-        start_at_block_height: 'current'
+        start_at_block_height: 'current',
+        enable_on_registration: true
       }
     });
     console.log('✅ Vote Cast Hook registered:', voteHook.uuid);
@@ -134,19 +142,21 @@ async function setupMonitoring() {
       network: 'mainnet',
       version: 1,
       filters: {
-        contract_identifier: CONTRACT_ADDRESS,
-        print_event: {
-          contains: 'proposal-executed'
-        }
+        events: [
+          {
+            type: 'contract_log',
+            contract_identifier: CONTRACT_ADDRESS
+          }
+        ]
       },
       action: {
-        http_post: {
-          url: `${WEBHOOK_URL}/proposal-executed`,
-          authorization_header: `Bearer ${process.env.WEBHOOK_SECRET || ''}`
-        }
+        type: 'http_post',
+        url: `${WEBHOOK_URL}/proposal-executed`,
+        authorization_header: `Bearer ${process.env.WEBHOOK_SECRET || ''}`
       },
       options: {
-        start_at_block_height: 'current'
+        start_at_block_height: 'current',
+        enable_on_registration: true
       }
     });
     console.log('✅ Proposal Execution Hook registered:', executionHook.uuid);
@@ -158,16 +168,21 @@ async function setupMonitoring() {
       network: 'mainnet',
       version: 1,
       filters: {
-        contract_identifier: CONTRACT_ADDRESS
+        events: [
+          {
+            type: 'contract_call',
+            contract_identifier: CONTRACT_ADDRESS
+          }
+        ]
       },
       action: {
-        http_post: {
-          url: `${WEBHOOK_URL}/all-calls`,
-          authorization_header: `Bearer ${process.env.WEBHOOK_SECRET || ''}`
-        }
+        type: 'http_post',
+        url: `${WEBHOOK_URL}/all-calls`,
+        authorization_header: `Bearer ${process.env.WEBHOOK_SECRET || ''}`
       },
       options: {
-        start_at_block_height: 'current'
+        start_at_block_height: 'current',
+        enable_on_registration: true
       }
     });
     console.log('✅ All Calls Hook registered:', allCallsHook.uuid);
